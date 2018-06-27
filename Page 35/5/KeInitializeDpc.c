@@ -2,6 +2,9 @@
 While this is a stdcall, the arguments are passed on registers per x64 convention:
 https://msdn.microsoft.com/en-us/library/ms235286.aspx
  Integer arguments are passed in registers RCX, RDX, R8, and R9.
+
+While IDA reports stdcall, the above link indicates it is fastcall.
+
 */
 void __stdcall KeInitializeDpc(PRKDPC Dpc, PKDEFERRED_ROUTINE DeferredRoutine, PVOID DeferredContext){
 

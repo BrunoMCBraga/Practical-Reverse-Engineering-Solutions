@@ -12,20 +12,21 @@ PKSPIN_LOCK_QUEUE KxWaitForLockChainValid(__inout PKSPIN_LOCK_QUEUE LockQueue){
 	PKSPIN_LOCK_QUEUE pLocalLockQueue = LockQueue; //rdi
 	int counter = 0;
 
+	Ptr64 nextPtr = NULL;
 	while(true){
 		counter++;
 		if (HvlLongSpinCountMask == counter){
 			if(HvlEnlightenments == 0x40)
-				//pause
+				asm("pause");
 			else
 				HvlNotifyLongSpinWait(counter);
 		}
 
 		else{
-			//pause
+			asm("pause");
 		}
 
-		Ptr64 nextPtr = pLocalLockQueue->Next;
+		nextPtr = pLocalLockQueue->Next;
 		if(nextPtr == 0){
 			continue;
 		}

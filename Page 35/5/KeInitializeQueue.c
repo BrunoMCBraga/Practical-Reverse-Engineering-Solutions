@@ -54,15 +54,15 @@ NTKERNELAPI VOID KeInitializeQueue(
 	Queue->_DISPATCHER_HEADER.TimerControlFlags = (char) zero;
 	Queue->_DISPATCHER_HEADER.SignalState = zero;	
 
-	PVOID queueOffset = &(Queue->_DISPATCHER_HEADER.WaitListHead);
+	LONG_PTR queueOffset = &(Queue->_DISPATCHER_HEADER.WaitListHead);
 	queueOffset->Blink = queueOffset;
 	queueOffset->Flink = queueOffset;
 
-	PVOID queueOffset2 = &(Queue->EntryListHead);
+	LONG_PTR queueOffset2 = &(Queue->EntryListHead);
 	queueOffset2->Blink = queueOffset2;
 	queueOffset2->Flink = queueOffset2;
 
-	PVOID queueOffset3 = &(Queue->ThreadListHead);
+	LONG_PTR queueOffset3 = &(Queue->ThreadListHead);
 	queueOffset3->Blink = queueOffset3;
 	queueOffset3->Flink = queueOffset3;
 

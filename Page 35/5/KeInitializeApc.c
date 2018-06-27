@@ -16,7 +16,7 @@ NTKERNELAPI __stdcall VOID KeInitializeApc(
 	localApc->Type = 0x12;
 	localApc->Size = 0x30
 
-	if(localEnvironment == 2){
+	if(localEnvironment == 2){///What is this constant??
 		char var = Thread->ApcStateIndex;
 	}
 

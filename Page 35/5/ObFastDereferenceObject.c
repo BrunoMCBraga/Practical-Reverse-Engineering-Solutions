@@ -30,13 +30,13 @@ ObFastDereferenceObject (IN PEX_FAST_REF FastRef, IN PVOID Object){
 		return ObfDereferenceObject(Object);
 	}
 
-	Ptr64 unionValue = fastRefLocalCopy; 
+	LONG_PTR unionValue = fastRefLocalCopy; 
 	PEX_FAST_REF pFastRefArgument = FastRef; //r9
 
 	while(true){
 		unionValue = fastRefLocalCopy + 1; ///increments RefCnt. r8
 
-		_atomic(
+		_atomic(//This is not a real instruction but it suffices to understand that the whole block is atomic.
 			//Isn't this always true? It seems it is comparing the value of the local union with the one passed as argument. 
 			//But this union has not been changed before so this should be true? Online solutions used other ntoskrnl which does not have this part.
 			//This one makes no sense but it suffices for training.
