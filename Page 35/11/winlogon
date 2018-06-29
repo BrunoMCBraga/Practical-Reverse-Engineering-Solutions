@@ -1,0 +1,92 @@
+We start by picking the logical address:
+
+lkd> !process 0 0
+**** NT ACTIVE PROCESS DUMP ****
+...
+
+PROCESS fffffa800819db00
+    SessionId: 1  Cid: 01d4    Peb: 7fffffdc000  ParentCid: 0190
+    DirBase: 1c14b5000  ObjectTable: fffff8a00946f0b0  HandleCount: 116.
+    Image: winlogon.exe
+
+For winlogon.exe, Directory Page Table Base is: 1c14b5000. Now, we investigate the base address. First we switch to another process:
+
+lkd> .process /r /p fffffa800819db00
+Implicit process is now fffffa80`0819db00
+Loading User Symbols
+..............................
+
+************* Symbol Loading Error Summary **************
+Module name            Error
+SharedUserData         No error - symbol load deferred
+
+You can troubleshoot most symbol related issues by turning on symbol loading diagnostics (!sym noisy) and repeating the command that caused symbols to be loaded.
+You should also verify that your symbol search path (.sympath) is correct.
+
+
+Then we check the PEB:
+
+lkd> !peb
+PEB at 000007fffffdc000
+    InheritedAddressSpace:    No
+    ReadImageFileExecOptions: No
+    BeingDebugged:            No
+    ImageBaseAddress:         00000000ffb00000
+
+
+So:
+ImageBaseAddress:         00000000ffb00000
+DirBase: 1c14b5000
+
+Image Base Address in Bits: 0000000000 000000 | 000000000 000000011 111111101 100000000 000000000000
+DirBase in Bits: 000111000001010010110101 000000000000. Only the top 12 and beyond matter. The others are cleared: 1c14b5000
+
+First level: 000000000 = 0
+Second Level:000000011 = 3
+Third Level: 111111101 = 0x1FD
+Fourth Level:100000000 = 0x100
+Fifth level: 000000000000 = 0
+
+Indexing PML4:
+
+lkd> !dq (1c14b5000+0x0*8) L1
+#1c14b5000 35a00001`c10fb867
+
+Base of PDPT: 0011010110100 000000000000000000111000001000011111011 100001100111. We keep the ones in the middle (51:12)-> 1C10FB000.
+
+Indexing PDPT:
+lkd> !dq (1C10FB000+0x3*8) L1
+#1c10fb018 03100001`c117c867
+
+
+Base of PD: 000000110001 0000000000000000000111000001000101111100 100001100111. We keep the ones in the middle (51:12)-> 1C117C000
+
+Indexing the PD:
+lkd> !dq (1C117C000+0x1FD*8) L1
+#1c117cfe8 03200001`c0ffd867
+
+Base of PT: 000000110010 0000000000000000000111000000111111111101 100001100111. We keep the ones in the middle (51:12) -> 1C0FFD000
+
+Indexing the PT:
+lkd> !dq (1C0FFD000+0x100*8) L1
+#1c0ffd800 83600001`c12b4105
+
+Base for physical: 100000110110 0000000000000000000111000001001010110100 000100000101 ... ->1C12B4000
+
+
+Physical: ???. We keep the ones in the middle (51:12) -> ???
+
+lkd> !db (1C12B4000+0x00*8) L8
+#1c12b4000 4d 5a 90 00 03 00 00 00 MZ..............
+
+lkd> db  00000000`ffb00000 L8
+00000000`ffb00000  4d 5a 90 00 03 00 00 00                          MZ......
+
+lkd> !vtop  0 00000000ffb00000
+Amd64VtoP: Virt 00000000`ffb00000, pagedir 00000001`c14b5000
+Amd64VtoP: PML4E 00000001`c14b5000
+Amd64VtoP: PDPE 00000001`c10fb018
+Amd64VtoP: PDE 00000001`c117cfe8
+Amd64VtoP: PTE 00000001`c0ffd800
+Amd64VtoP: Mapped phys 00000001`c12b4000
+Virtual address ffb00000 translates to physical address --->1c12b4000<--.

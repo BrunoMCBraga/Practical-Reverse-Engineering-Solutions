@@ -1,0 +1,172 @@
+We start by picking the logical address:
+
+lkd> !process 0 0
+**** NT ACTIVE PROCESS DUMP ****
+...
+
+PROCESS fffffa8007cdeb00
+    SessionId: 0  Cid: 0198    Peb: 7fffffdf000  ParentCid: 0168
+    DirBase: 1c0d37000  ObjectTable: fffff8a000b63520  HandleCount:  79.
+    Image: wininit.exe <----------
+
+
+For wininit.exe, Directory Page Table Base is: 1c0d37000. Now, we investigate the base address. First we switch to another process:
+
+lkd> .process /r /p fffffa8007cdeb00
+Implicit process is now fffffa80`07cdeb00
+Loading User Symbols
+..........................
+
+************* Symbol Loading Error Summary **************
+Module name            Error
+SharedUserData         No error - symbol load deferred
+
+You can troubleshoot most symbol related issues by turning on symbol loading diagnostics (!sym noisy) and repeating the command that caused symbols to be loaded.
+You should also verify that your symbol search path (.sympath) is correct.
+GetContextState failed, 0x80004001
+lkd> lm
+start             end                 module name
+00000000`778f0000 00000000`77a0f000   kernel32   (deferred)             
+00000000`77a10000 00000000`77b0a000   USER32     (deferred)             
+00000000`77b10000 00000000`77caf000   ntdll      (pdb symbols)          c:\symbols\ntdll.pdb\F47155555C654CCCAECFD23B66F59D7D1\ntdll.pdb
+00000000`ff840000 00000000`ff863000   wininit    (deferred)             
+000007fe`fc8d0000 000007fe`fc8d7000   wshtcpip   (deferred)             
+000007fe`fcbd0000 000007fe`fcbda000   credssp    (deferred)             
+000007fe`fcf60000 000007fe`fcf67000   wship6     (deferred)             
+000007fe`fcf70000 000007fe`fcfc5000   mswsock    (deferred)             
+000007fe`fd3e0000 000007fe`fd3eb000   secur32    (deferred)             
+000007fe`fd5b0000 000007fe`fd5d5000   SSPICLI    (deferred)             
+000007fe`fd5e0000 000007fe`fd637000   apphelp    (deferred)             
+000007fe`fd640000 000007fe`fd64f000   CRYPTBASE   (deferred)             
+000007fe`fd730000 000007fe`fd744000   RpcRtRemote   (deferred)             
+000007fe`fd7e0000 000007fe`fd7ef000   profapi    (deferred)             
+000007fe`fdae0000 000007fe`fdb4a000   KERNELBASE   (deferred)             
+000007fe`fded0000 000007fe`fdf37000   GDI32      (deferred)             
+000007fe`fdf40000 000007fe`fe049000   MSCTF      (deferred)             
+000007fe`fe420000 000007fe`fe4fb000   ADVAPI32   (deferred)             
+000007fe`fe500000 000007fe`fe62d000   RPCRT4     (deferred)             
+000007fe`fe7b0000 000007fe`fe7fd000   WS2_32     (deferred)             
+000007fe`fe800000 000007fe`fe89f000   msvcrt     (deferred)             
+000007fe`ff6d0000 000007fe`ff79b000   USP10      (deferred)             
+000007fe`ff7a0000 000007fe`ff7ae000   LPK        (deferred)             
+000007fe`ff7b0000 000007fe`ff7b8000   NSI        (deferred)             
+000007fe`ff7c0000 000007fe`ff7df000   sechost    (deferred)             
+000007fe`ffbf0000 000007fe`ffc1e000   IMM32      (deferred)             
+fffff800`02859000 fffff800`02e3c000   nt         (pdb symbols)          c:\symbols\ntkrnlmp.pdb\2F65BED616A149B0BE7B8F29417F2B891\ntkrnlmp.pdb
+
+Unloaded modules:
+fffff880`029cd000 fffff880`029d6000   kldbgdrv.sys
+fffff880`01922000 fffff880`01930000   crashdmp.sys
+fffff880`01930000 fffff880`0193c000   dump_pciidex.sys
+fffff880`0193c000 fffff880`01947000   dump_msahci.sys
+fffff880`01947000 fffff880`0195a000   dump_dumpfve.sys
+fffff880`0195a000 fffff880`01984000   cdrom.sys
+000007fe`fd720000 000007fe`fd724000   kbdus.dll
+000007fe`fd6e0000 000007fe`fd6e4000   KBDUK.DLL
+000007fe`fd6d0000 000007fe`fd6d4000   KBDUS.DLL
+000007fe`fd6e0000 000007fe`fd6e7000   wls0wndh.dll
+000007fe`fcfd0000 000007fe`fcfe8000   cryptsp.dll
+
+
+Then we check the PEB:
+
+
+lkd> !peb
+PEB at 000007fffffdf000
+    InheritedAddressSpace:    No
+    ReadImageFileExecOptions: No
+    BeingDebugged:            No
+    ImageBaseAddress:         00000000ff840000 <---------
+    Ldr                       0000000077c42e40
+    Ldr.Initialized:          Yes
+    Ldr.InInitializationOrderModuleList: 00000000001a2650 . 00000000001ed5e0
+    Ldr.InLoadOrderModuleList:           00000000001a2540 . 00000000001ed5c0
+    Ldr.InMemoryOrderModuleList:         00000000001a2550 . 00000000001ed5d0
+            Base TimeStamp                     Module
+        ff840000 4a5bc8c4 Jul 13 16:52:36 2009 C:\Windows\system32\wininit.exe
+        77b10000 5b0cbc1e May 28 19:34:06 2018 C:\Windows\SYSTEM32\ntdll.dll
+        778f0000 5b0cbc64 May 28 19:35:16 2018 C:\Windows\system32\kernel32.dll
+     7fefdae0000 5b0cbc65 May 28 19:35:17 2018 C:\Windows\system32\KERNELBASE.dll
+        77a10000 5824a140 Nov 10 08:33:04 2016 C:\Windows\system32\USER32.dll
+     7fefded0000 59b2b7a8 Sep 08 08:30:48 2017 C:\Windows\system32\GDI32.dll
+     7feff7a0000 5aa2cd72 Mar 09 10:07:46 2018 C:\Windows\system32\LPK.dll
+     7feff6d0000 599464f6 Aug 16 08:29:58 2017 C:\Windows\system32\USP10.dll
+     7fefe800000 4eeb033f Dec 16 00:37:19 2011 C:\Windows\system32\msvcrt.dll
+     7fefe500000 5b0cbbc6 May 28 19:32:38 2018 C:\Windows\system32\RPCRT4.dll
+     7feff7c0000 55636728 May 25 11:17:12 2015 C:\Windows\SYSTEM32\sechost.dll
+     7fefd7e0000 4a5be01f Jul 13 18:32:15 2009 C:\Windows\system32\profapi.dll
+     7feffbf0000 4a5bdf40 Jul 13 18:28:32 2009 C:\Windows\system32\IMM32.DLL
+     7fefdf40000 59b94ec5 Sep 13 08:29:09 2017 C:\Windows\system32\MSCTF.dll
+     7fefe420000 5b0cbbbf May 28 19:32:31 2018 C:\Windows\system32\ADVAPI32.dll
+     7fefd730000 4ce7c96f Nov 20 05:13:19 2010 C:\Windows\system32\RpcRtRemote.dll
+     7fefd5e0000 56325b95 Oct 29 10:47:01 2015 C:\Windows\system32\apphelp.dll
+     7fefd640000 5b0cbca2 May 28 19:36:18 2018 C:\Windows\system32\CRYPTBASE.dll
+     7fefe7b0000 573365bb May 11 10:02:51 2016 C:\Windows\system32\WS2_32.dll
+     7feff7b0000 598d5072 Aug 10 23:36:34 2017 C:\Windows\system32\NSI.dll
+     7fefcf70000 573365e8 May 11 10:03:36 2016 C:\Windows\system32\mswsock.dll
+     7fefc8d0000 4a5be0b7 Jul 13 18:34:47 2009 C:\Windows\System32\wshtcpip.dll
+     7fefcf60000 4a5be0b1 Jul 13 18:34:41 2009 C:\Windows\System32\wship6.dll
+     7fefd3e0000 5b0cbbf5 May 28 19:33:25 2018 C:\Windows\system32\secur32.dll
+     7fefd5b0000 5b0cbbf4 May 28 19:33:24 2018 C:\Windows\system32\SSPICLI.DLL
+     7fefcbd0000 5b0cbc9e May 28 19:36:14 2018 C:\Windows\system32\credssp.dll
+    SubSystemData:     0000000000000000
+    ProcessHeap:       00000000001a0000
+    ProcessParameters: 00000000001a1b30
+    CurrentDirectory:  'C:\Windows\system32\'
+    WindowTitle:  '< Name not readable >'
+    ImageFile:    'C:\Windows\system32\wininit.exe'
+    CommandLine:  'wininit.exe'
+    DllPath:      'C:\Windows\system32;C:\Program Files\Python27\;C:\Program Files\Python27\Scripts;C:\Program ...
+
+So:
+ImageBaseAddress:         00000000ff840000
+DirBase: 1c0d37000
+DirBase per CR3: 
+
+lkd> !r
+...
+cr3	Value: 000007fefe8015b4
+...
+
+The reason i do not see the same value is because i am debugging kernel locally which does not allo me to do intrusive debugging. That would lead to the same value.
+
+Image Base Address in Bits: 0000000000000000 000000000 000000011 111111100 001000000 000000000000
+DirBase in Bits: 000111000000110100110111 000000000000. Only the top 12 and beyond matter. The others are cleared: 1c0d37000
+
+First level: 000000000 = 0
+Second Level: 000000011 = 3
+Third Level: 111111100 = 0x1FC 
+Fourth Level: 001000000 = 0x40
+Fifth level: 000000000000
+
+Indexing PML4:
+
+lkd> !dq (1c0d37000+0x0*8) L1
+#1c0d37000 02f00001`ec750867
+
+Base of PDPT: 000000101111 0000000000000000000111101100011101010000 100001100111. We keep the ones in the middle (51:12)-> 1EC750000.
+
+Indexing PDPT:
+lkd> !dq (1EC750000+0x3*8) L1
+#1ec750018 03000001`dc751867
+
+Base of PD: 0000001100000 000000000000000000111011100011101010001 100001100111. We keep the ones in the middle (51:12)-> 1DC751000.
+
+Indexing the PD:
+lkd> !dq (1DC751000+0x1FC*8) L1
+#1dc751fe0 03100001`e7f52867
+
+Base of PT: 000000110001 0000000000000000000111100111111101010010 100001100111. We keep the ones in the middle (51:12) -> 1E7F52000
+
+Indexing the PT:
+lkd> !dq (1E7F52000+0x40*8) L1
+#1e7f52200 83200001`e6f36105
+
+
+Physical: 100000110010 0000000000000000000111100110111100110110 000100000101. We keep the ones in the middle (51:12) -> 1E6F36000
+
+lkd> !db (1E6F36000+0x00*8) L8
+#1e6f36000 4d 5a 90 00 03 00 00 00 MZ......e$V.....
+
+lkd> db  0`ff840000 L8
+00000000`ff840000  4d 5a 90 00 03 00 00 00                          MZ......
